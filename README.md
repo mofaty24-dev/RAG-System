@@ -1,2 +1,19 @@
-# RAG-System-local-version-
-initial RAG System without resorting to any cloud tool, it has been built depending on hugging face models , faiss as vector database and FastAPI as the backend of the website and finally simple UI by html,css and JS
+# RAG QA System
+
+A Retrieval-Augmented Generation system that answers questions based on PDF documents.
+
+## Features
+- Semantic search using FAISS
+- LLM-based answer generation
+- Source grounding
+- FastAPI backend
+
+## Tech Stack
+- Python
+- FAISS
+- Sentence Transformers
+- TinyLlama
+- FastAPI
+
+## Run
+uvicorn app:app --reload
