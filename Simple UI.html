@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Assistant</title>
+    <style>
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.container {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    width: 500px;
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+}
+
+h1 {
+    text-align: center;
+}
+
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+button {
+    background-color: #2a5298;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background-color: #1e3c72;
+}
+</style>
+
+</head>
+<body>
+<div class="container">
+<input type="text" id="question" placeholder="Ask a question" size="50">
+<button onclick="ask()">Ask</button>
+<h3>Answer:</h3>
+<div id="answerBox"></div>
+<p id="response"></p>
+</div>
+<script>
+
+async function ask() {
+    const question = document.getElementById("question").value;
+
+    const response = await fetch("/ask", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ question: question })
+    });
+
+    const data = await response.json();
+    document.getElementById("answerBox").innerText = data.answer;
+}
+
+async function uploadFiles(event) {
+    event.preventDefault();  // يمنع refresh
+
+    const files = document.getElementById("pdfFiles").files;
+    let formData = new FormData();
+
+    for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
+    }
+
+    const response = await fetch("/upload", {
+        method: "POST",
+        body: formData
+    });
+
+    const data = await response.json();
+    alert(data.message);
+}
+
+</script>
+
+
+</body>
+</html>
