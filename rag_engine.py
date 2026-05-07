@@ -12,7 +12,7 @@ class RAGEngine:
 
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
-        # Load index
+        # Loading vector database if it was created previously 
         if os.path.exists("company_index.faiss"):
             self.index = faiss.read_index("company_index.faiss")
             with open("chunks.pkl", "rb") as f:
@@ -23,15 +23,14 @@ class RAGEngine:
                 raise ValueError("INDEX_DIR missing")
             self.index, self.chunks = build_index(index_path)
 
-        # Generator
+        # Building text Generator
         device = 0 if torch.cuda.is_available() else -1
-
         self.generator = pipeline(
             "text-generation",
             model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
             device=device
         )
-
+     
     def embed_query(self, text):
         embedding = self.model.encode([text], convert_to_numpy=True)
         faiss.normalize_L2(embedding)
@@ -51,7 +50,7 @@ class RAGEngine:
     def generate_answer(self, query):
         retrieved_chunks = self.search(query)
 
-        # 🛑 لو مفيش context كفاية
+        
         if not retrieved_chunks:
             return {
                 "answer": "I don't have enough information.",
