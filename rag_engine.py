@@ -1,111 +1,68 @@
-import os
 import faiss
 import pickle
+from pypdf import PdfReader
+import os
 from sentence_transformers import SentenceTransformer
-from Build_Index import build_index
-from openai import OpenAI
-from dotenv import load_dotenv
+from transformers import AutoTokenizer
 
-load_dotenv()
+model = SentenceTransformer("all-MiniLM-L6-v2")
+tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
 
 
-class RAGEngine:
-    def __init__(self):
+def read_pdf(path):
+    reader = PdfReader(path)
+    text = ""
 
-        # embedding model
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
 
-        # load or build index
-        if os.path.exists("company_index.faiss"):
-            self.index = faiss.read_index("company_index.faiss")
+    return text
 
-            with open("chunks.pkl", "rb") as f:
-                self.chunks = pickle.load(f)
 
-        else:
-            index_path = os.getenv("INDEX_DIR")
+def chunk_text(text,source_name, chunk_size=256, overlap=50 ):
+    tokenized_text = tokenizer.encode(text , add_special_tokens=False)
+    chunks = []
+    start = 0
+    while start < len(tokenized_text):
+        end = start + chunk_size
+        tokenized_chunk = tokenized_text[start:end]
+        chunk = tokenizer.decode(tokenized_chunk , skip_special_tokens=True)
+        chunks.append({"text":chunk ,"source_name":source_name})
+        start += (chunk_size - overlap)
 
-            if not index_path:
-                raise ValueError("INDEX_DIR missing")
+    return chunks
 
-            self.index, self.chunks = build_index(index_path)
 
-        # Azure OpenAI client
-        self.client = OpenAI(
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}/openai/v1/"
-        )
+def document_read(path):
+    all_chunks = []
 
-        self.deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    for file in os.listdir(path):
+        if file.endswith(".pdf"):
+            all_text = read_pdf(os.path.join(path, file))
+            chunks = chunk_text(text=all_text, source_name=file)
+            all_chunks.extend(chunks)
+    return all_chunks
 
-    def embed_query(self, text):
-        embedding = self.model.encode([text], convert_to_numpy=True)
-        faiss.normalize_L2(embedding)
-        return embedding
 
-    def search(self, query, top_k=3):
+def embed_chunks(chunks):
+    text = [chunk["text"] for chunk in chunks]
+    embedding = model.encode(text,convert_to_numpy=True).astype("float32")
+    faiss.normalize_L2(embedding)
+    return embedding
 
-        query_embedding = self.embed_query(query)
 
-        distances, indices = self.index.search(query_embedding, top_k)
+def build_index(folder_path):
+    chunks = document_read(folder_path)
+    embeddings = embed_chunks(chunks)
 
-        results = []
+    index = faiss.IndexFlatIP(embeddings.shape[1])
+    index.add(embeddings)
 
-        for i in indices[0]:
-            if i != -1:
-                results.append(self.chunks[i])
+    faiss.write_index(index, "company_index.faiss")
 
-        return results
+    with open("chunks.pkl", "wb") as f:
+        pickle.dump(chunks, f)
 
-    def generate_answer(self, query):
-
-        retrieved_chunks = self.search(query)
-
-        if not retrieved_chunks:
-            return {
-                "answer": "I don't have enough information.",
-                "sources": []
-        }
-        context = "\n\n".join(retrieved_chunks)
-
-        prompt = f"""
-        You are a strict AI assistant.
-
-        Rules:
-        - Use ONLY the provided context.
-        - If answer is not in context, say: "I don't have enough information."
-        - Do NOT guess.
-        - Keep answers concise.
-        - No repetition.
-
-        Context:
-        {context}
-
-        Question:
-        {query}
-
-        Answer:
-        """
-
-        response = self.client.chat.completions.create(
-            model=self.deployment,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a strict RAG assistant."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.2,
-            max_tokens=120
-        )
-
-        answer = response.choices[0].message.content
-
-        return {
-            "answer": answer,
-            "sources": retrieved_chunks
-        }
+    return index, chunks
