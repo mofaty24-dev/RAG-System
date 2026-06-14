@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 from Build_Index import build_index
 from openai import OpenAI
 from dotenv import load_dotenv
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
 load_dotenv()
 
@@ -31,9 +32,11 @@ class RAGEngine:
             self.index, self.chunks = build_index(index_path)
 
         # Azure OpenAI client
+        token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://ai.azure.com/.default")
+        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         self.client = OpenAI(
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}/openai/v1/"
+            api_key=token_provider,
+            base_url=endpoint
         )
 
         self.deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
@@ -55,7 +58,7 @@ class RAGEngine:
 
         for i in indices[0]:
             if i != -1:
-                results.append({"text": chunks_text[i], "source":chunks_file[i]})
+                results.append({"text": chunks_text[i], "source": chunks_file[i]})
 
         return results
 
@@ -67,7 +70,7 @@ class RAGEngine:
             return {
                 "answer": "I don't have enough information.",
                 "sources": []
-        }
+            }
         context = "\n\n".join(f"[{chunk['source']}]: {chunk['text']}" for chunk in retrieved_chunks)
 
         prompt = f"""
@@ -79,7 +82,7 @@ class RAGEngine:
         - Do NOT guess.
         - Keep answers concise.
         - No repetition.
-        
+
 
         Context:
         {context}
