@@ -48,6 +48,29 @@ class RAGEngine:
 
     def search(self, query, top_k=3):
 
+#         prompt = ("the following prompt was submitted by a user in order to query a database of --define the database content then declare the relation between the query and database-- rewrite the prompt to optimize it for searching the database by doing the following:"
+#                   "- Clarify ambiguous phrases"
+#                   "- Add synonyms that increase odds of finding matching documents "
+#                   "- Remove unnecessary or distracting information."
+#                   f"Prompt:{query}")
+#
+#         response = (self.client.chat.completions.create
+#         (
+#         model = self.deployment,
+#         messages =
+#           [ {
+#                 "role":"system",
+#                 "content":"you are a query reparse assistant"
+#             }
+#             ,
+#             {
+#                 "role":"user",
+#                 "content":prompt
+#             }
+#           ]
+#         ))
+#       query = response.choices[0].message.content
+
         query_embedding = self.embed_query(query)
 
         distances, indices = self.index.search(query_embedding, top_k)
