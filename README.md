@@ -17,9 +17,3 @@ A production-style Retrieval-Augmented Generation (RAG) system built with:
 
 ## Tech Stack
 Python, FastAPI, FAISS, Azure OpenAI, HuggingFace
-
-## Future Improvements
-- Azure AI Search
-- Hybrid Retrieval
-- Evaluation Pipeline
-- Docker Deployment
