@@ -1,4 +1,4 @@
-# Enterprise RAG System
+# Production RAG System
 
 A production-style Retrieval-Augmented Generation (RAG) system built with:
 
